@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 
+
 class StockPatternFinderApp:
     def __init__(self, root):
         self.root = root
@@ -65,9 +66,43 @@ class StockPatternFinderApp:
         if hasattr(self, 'canvas'):
             self.canvas.get_tk_widget().destroy()
 
+        closes = data['Close']
+        if isinstance(closes, pd.DataFrame):
+            closes = closes.iloc[:, 0]
+
+        short_ma = closes.rolling(window=5).mean()
+        long_ma = closes.rolling(window=20).mean()
+
+
+        crossover_dates = []
+        for i in range(1, len(closes)):
+            if pd.isna(short_ma.iloc[i-1]) or pd.isna(long_ma.iloc[i-1]) or pd.isna(short_ma.iloc[i]) or pd.isna(long_ma.iloc[i]):
+                continue
+
+            short_prev = float(short_ma.iloc[i-1])
+            short_curr = float(short_ma.iloc[i])
+            long_prev = float(long_ma.iloc[i-1])
+            long_curr = float(long_ma.iloc[i])
+
+            if short_prev < long_prev and short_curr >= long_curr:
+                crossover_dates.append((closes.index[i], closes.iloc[i], 'Golden'))
+            elif short_prev > long_prev and short_curr <= long_curr:
+                crossover_dates.append((closes.index[i], closes.iloc[i], 'Death'))
+
+       
         fig, ax = plt.subplots(figsize=(10, 5))
-        ax.plot(data.index, data['Close'], label='Close Price')
-        ax.set_title(f"{symbol} Close Price")
+        ax.plot(closes.index, closes, label='Close Price', color='blue')
+        ax.plot(short_ma.index, short_ma, label='5-Day MA', color='orange')
+        ax.plot(long_ma.index, long_ma, label='20-Day MA', color='green')
+
+    
+        for date, price, ctype in crossover_dates:
+            if ctype == 'Golden':
+                ax.scatter(date, price, color='gold', marker='^', s=100, label='Golden Cross' if 'Golden Cross' not in ax.get_legend_handles_labels()[1] else "")
+            elif ctype == 'Death':
+                ax.scatter(date, price, color='red', marker='v', s=100, label='Death Cross' if 'Death Cross' not in ax.get_legend_handles_labels()[1] else "")
+
+        ax.set_title(f"{symbol} Close Price & Moving Averages")
         ax.set_xlabel("Date")
         ax.set_ylabel("Price")
         ax.legend()
@@ -77,19 +112,32 @@ class StockPatternFinderApp:
         self.canvas.draw()
         self.canvas.get_tk_widget().grid(row=1, column=0, columnspan=3)
 
+        plt.close(fig)
+
+
     def find_patterns(self, data):
         closes = data['Close']
+
+        if isinstance(closes, pd.DataFrame):
+            closes = closes.iloc[:, 0]
+
         short_ma = closes.rolling(window=5).mean()
         long_ma = closes.rolling(window=20).mean()
 
         crossover_dates = []
         for i in range(1, len(closes)):
+            
             if pd.isna(short_ma.iloc[i-1]) or pd.isna(long_ma.iloc[i-1]) or pd.isna(short_ma.iloc[i]) or pd.isna(long_ma.iloc[i]):
                 continue  
 
-            if short_ma.iloc[i-1] < long_ma.iloc[i-1] and short_ma.iloc[i] >= long_ma.iloc[i]:
+            short_prev = float(short_ma.iloc[i-1])
+            short_curr = float(short_ma.iloc[i])
+            long_prev = float(long_ma.iloc[i-1])
+            long_curr = float(long_ma.iloc[i])
+
+            if short_prev < long_prev and short_curr >= long_curr:
                 crossover_dates.append((closes.index[i], 'Golden Cross'))
-            elif short_ma.iloc[i-1] > long_ma.iloc[i-1] and short_ma.iloc[i] <= long_ma.iloc[i]:
+            elif short_prev > long_prev and short_curr <= long_curr:
                 crossover_dates.append((closes.index[i], 'Death Cross'))
 
         if not crossover_dates:
@@ -100,7 +148,9 @@ class StockPatternFinderApp:
                 msg += f"{date.date()}: {pattern}\n"
             messagebox.showinfo("Pattern Finder", msg)
 
+
 if __name__ == '__main__':
     root = tk.Tk()
+    root.iconbitmap(r"mini project/Apple_Stock-512.ico")
     app = StockPatternFinderApp(root)
     root.mainloop()
