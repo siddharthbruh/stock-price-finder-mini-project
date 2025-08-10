@@ -85,7 +85,7 @@ class StockPatternFinderApp:
         crossover_dates = []
         for i in range(1, len(closes)):
             if pd.isna(short_ma.iloc[i-1]) or pd.isna(long_ma.iloc[i-1]) or pd.isna(short_ma.iloc[i]) or pd.isna(long_ma.iloc[i]):
-                continue  # skip if any moving average value is NaN
+                continue  
 
             if short_ma.iloc[i-1] < long_ma.iloc[i-1] and short_ma.iloc[i] >= long_ma.iloc[i]:
                 crossover_dates.append((closes.index[i], 'Golden Cross'))
